@@ -9,7 +9,7 @@ SpeechCenter requires Cepstral Voices (licenses must e purchased) Belle, Allison
 
 Speech Recognition is built on the Python SpeechRecognition package, and you must have CMUSphinx and PocketSphinx installed, along with the Python Packages.  You also need to know how to configure audio sources in your distro.
 
-LanguageProcessor is filled to the brim with dependencies including NLTK, BERT, Python RexExps, and a bunch of stuff I've created to both extend and fix the limitations and shortcomings of the initial packages I used.  Its performance, while still not indistinguishable from a human, is superior to anything else I've seen demonstrated anywhere on the.  Watch for links to YouTube videos when I finish this part off.
+LanguageProcessor is filled to the brim with dependencies including NLTK, BERT, Python RexExps, and a bunch of stuff I've created to both extend and fix the limitations and shortcomings of the initial packages I used.  Its performance, while still not indistinguishable from a human, is superior to anything else I've seen demonstrated anywhere on the web or tradeshows.  Watch for links to YouTube videos when I finish this part off.
 
 FaceRecognition requires OpenCV and is based on the initial work of Adrian Rosebock (https://www.pyimagesearch.com/author/adrian/).  I've modified it extensively to publish video frames and send data out about face center positioning (made available to the MotorFunctions script for eyeball and head/neck positioning, etc.) and who has been recognized, etc.
 
