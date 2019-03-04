@@ -1,6 +1,8 @@
 # HostBuilds
 Initial Repository for Host Builds.  These are very lifelike humanoid robot builds designed to look, move, interact, speak and respond in as human-like fashion as possible.
 
+This repository works directly with the Behavior Pad Interface I created at https://github.com/DaveXanatos/Westworld-Style-Behavior-Pad-Interface
+
 Non-proprietary files here only - LanguageProcessor.py contains very sophisticated code that outperforms everything available to date, and until I determine how to protect my work on this it'll have to remain offline.
 
 These scripts are built on top of many dependencies and are Python 3.5 and up.  My build distro is Debian (Raspbian) Stretch (currently).  PyZMQ (ZeroMQ) is required for the scripts to send data between each other. 0MQ ROCKS!
