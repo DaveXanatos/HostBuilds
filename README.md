@@ -1,5 +1,5 @@
 # HostBuilds
-Initial Repository for Host Builds.  These are very lifelike humanoid robot builds designed to look, move, interact, speak and respond in as humal-like fashion as possible.
+Initial Repository for Host Builds.  These are very lifelike humanoid robot builds designed to look, move, interact, speak and respond in as human-like fashion as possible.
 
 Non-proprietary files here only - LanguageProcessor.py contains very sophisticated code that outperforms everything available to date, and until I determine how to protect my work on this it'll have to remain offline.
 
