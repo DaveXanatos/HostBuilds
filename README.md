@@ -1,7 +1,7 @@
 # HostBuilds
 Initial Repository for Host Builds.  These are very lifelike humanoid robot builds designed to look, move, interact, speak and respond in as human-like fashion as possible.
 
-This repository works directly with the Behavior Pad Interface I created at https://github.com/DaveXanatos/Westworld-Style-Behavior-Pad-Interface
+This repository works directly with the Behavior Pad Interface I created at https://github.com/DaveXanatos/Westworld-Style-Behavior-Pad-Interface  Note that while the interface has MANY "Westworld" hosts in it for fun... the one that works with the system here is the host called Base Host, which can be accessed by the selectror in teh interface's upper-right box.  The other hosts are for fun and fans only.
 
 Non-proprietary files here only - LanguageProcessor.py contains very sophisticated code that outperforms everything available to date, and until I determine how to protect my work on this it'll have to remain offline.
 
