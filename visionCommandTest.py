@@ -4,7 +4,7 @@ context = zmq.Context()
 
 print("Connecting to Visual Systems")
 socket = context.socket(zmq.REQ)
-socket.connect("tcp://localhost:5556")
+socket.connect("tcp://localhost:5555")   #5556 is visual, 5558 is language, 555 dir to speech
 
 def main():
     while True:
