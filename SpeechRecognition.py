@@ -5,6 +5,8 @@ import speech_recognition as sr
 import time
 import zmq
 
+noiseList = ['up','up up','poop','pope','the pope','pop','duped','Pat','yep','the the','the pop pop','the','uh']
+
 context = zmq.Context()
 
 print("Connecting to Speech Center")
@@ -32,12 +34,8 @@ def main():
         print("Ready")
         with sr.Microphone() as source:
             SpeakText = r.recognize_sphinx(r.listen(source))
-            SpeakText = SpeakText.replace("'","")  # Apostrophes cause no speech output from SpeechCenter
-
-            #SpeakTextD = "I think I heard, " + SpeakText + "."
-            #socketSDir.send_string(SpeakTextD)
-            #messageD = socketSDir.recv()
-
+            if SpeakText in noiseList:   #split SpeakText//len(SpeakText)//for word in SpeakText if word in noiseList increment count +1// if count = len(speaktext) #(meaning all words are noise) then change SpeakText to BG Noise.
+                SpeakText = "Background Noise"
             try:
                 socket.send_string(SpeakText)
                 message = socket.recv(20000)  # Should timeout with EAGAIN error after 20 secs.
