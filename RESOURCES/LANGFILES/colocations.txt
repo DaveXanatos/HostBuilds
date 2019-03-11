@@ -1,0 +1,74 @@
+1 you know INT 27348
+2 I think INT/CA 25862
+3 a bit AVP/NP 7766
+4 as well AVP 5754
+7 thank you VP 4789
+9 in fact AVP/PP 3009
+10 very much AP/AVP 2818
+12 talking about VP 2489 
+13 at the moment PP 2176
+14 a little AVP/NP 1935
+14 little bit AVP/NP 1935
+15 looking at VP 1849
+16 this morning AVP/NP 1846
+18 come on INT 1778
+20 come in VP 1571
+21 come back VP 1547
+24 so much AP/AVP 1334
+27 this year AVP/NP 1255
+28 go back VP 1250
+29 last night AVP/NP 1244
+31 come out VP 1163
+32 very good AP 1160
+34 that way AVP/NP 1145
+38 mean that VP 1066
+39 come on VP 1059
+41 all the time AVP/NP 1044
+42 thank you very much VP 1041
+43 too much AVP/AP 1034
+44 over there AVP 1017
+45 that sort (of sth) NP 1016
+46 looking for {sth} VP 990
+48 very well AP/AVP 987
+
+
+1 of course INT 2698
+2 as well as C/P 1979
+3 in fact AVP/PP 1679
+4 I think INT/CA 1565
+7 said that (N, S V) VP 1345
+8 a number of NP 1313
+10 so much AVP/AP 1238
+12 away from AVP 1220
+13 this year AVP/NP 1156
+14 know that VP 1104
+15 you know INT 1074
+16 each other AVP 1042
+18 look at VP 981
+19 the number of NP 949
+20 say that VP 932
+21 just as C/P 923
+22 as well AVP 917
+24 even if C 862
+25 at home PP 839
+26 this time AVP/NP 839
+27 in the world PP 828
+28 very much AP/AVP 823
+30 only one NP 796
+31 at the same time PP 778
+32 much more AP/AVP 776
+33 at the time PP 765
+34 too much AVP/AP 764
+35 last night AVP/NP 755
+36 so many AVP/AP 721
+37 set up VP 711
+40 any other NP 672
+41 so far AVP 660
+43 went on VP 635
+44 think of VP 629
+45 even though C 628
+46 for the first time PP 620
+47 one day AVP/NP 612
+48 thought that (N, S V) VP 585
+49 all right AP 579
+
