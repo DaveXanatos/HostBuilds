@@ -1,5 +1,5 @@
 # python SpeechCenter.py
-# Connects to port 5555 using ZeroMQ, receives speech commands from other scripts
+# Binds to port 5555 using ZeroMQ, receives speech commands from other scripts
 
 import time
 import zmq
@@ -7,11 +7,11 @@ import os
 import re
 
 # Open Host Behavior Matrix on Server Portal Folder:
-Host = open('/var/www/html/HostBuilds/ACTIVEHOST.txt', "r")  # On Host Processor
+Host = open('/var/www/html/HostBuilds/ACTIVEHOST.txt', "r")  # On Host BPI
 HostLines = Host.readlines()
 Host.close
 
-HostIDparts = HostLines[0].split("|")  # HostLines[0] contains the base self attributes, [1] contains system parameters for OpenCV, etc., [2] - [21] contain the matrix attributes
+HostIDparts = HostLines[0].split("|")
 V = HostIDparts[5]  # Host Voice
 
 context = zmq.Context()
@@ -34,7 +34,7 @@ def set_voice(V,T):
 
 pronunciationDict = {'Maeve':'Mayve','Mariposa':'May-reeposah','Lila':'Lie-la','Trump':'Ass hole'}
 
-def adjustResponse(response):     # Adjusts spellings in verbal output string only to create better speech output, things like Maeve and Mariposa
+def adjustResponse(response):     # Adjusts spellings in verbal output string for better pronunciation
     for key, value in pronunciationDict.items():
         if key in response or key.lower() in response:
             response = re.sub(key, value, response, flags=re.I)
@@ -100,5 +100,3 @@ while True:
 # This is <emphasis level='none'>the same as</emphasis> than the rest.
 
 # I can't emphasize enough how <emphasis level='strong'>powerful</emphasis> these new attributes can be  <prosody volume='-90%'>But don't tell anybody</prosody>.
-
-
