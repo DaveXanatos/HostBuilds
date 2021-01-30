@@ -1,0 +1,10 @@
+#/home/pi/.config/lxsession/LXDE-pi
+#autostart (no file extension)
+
+@lxpanel --profile LXDE-pi
+@pcmanfm --desktop --profile LXDE-pi
+@xscreensaver -no-splash
+@point-rpi
+@lxterminal
+@/home/pi/Desktop/HOSTCORE/launcher.sh
+
