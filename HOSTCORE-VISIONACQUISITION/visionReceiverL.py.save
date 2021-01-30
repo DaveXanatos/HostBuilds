@@ -1,0 +1,14 @@
+# Uncommitted receiver for LEFT eye stream.  Just displays the images.
+# This version is applying jpg compression
+import sys
+import numpy as np
+import cv2
+import imagezmq
+
+image_hub = imagezmq.ImageHub(open_port='tcp://192.168.1.210:5560', REQ_REP=False)
+while True:  # press Ctrl-C to stop image display program
+    #image_name, image = image_hub.recv_image()
+    image_name, jpg_buffer = image_hub.recv_jpg()
+    image = cv2.imdecode(np.frombuffer(jpg_buffer, dtype='uint8'), -1)
+    cv2.imshow(image_name, image)
+    cv2.waitKey(1)  # wait until a key is pressed
