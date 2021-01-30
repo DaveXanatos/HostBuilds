@@ -1,13 +1,21 @@
 # HostBuilds
-Initial Repository for Host Builds.  These are very lifelike humanoid robot builds designed to look, move, interact, speak and respond in as human-like fashion as possible.
+Initial Repository for Robotic Host Builds.  These are very lifelike humanoid robot builds designed to look, move, interact, speak and respond in as human-like fashion as possible.
 
-This repository works directly with the Behavior Pad Interface I created at https://github.com/DaveXanatos/Westworld-Style-Behavior-Pad-Interface  Note that while the interface has MANY "Westworld" hosts in it for fun... the one that works with the system here is the host called Base Host, which can be accessed by the selector in the interface's upper-right box.  The other hosts are for fun and fans only.
+These robots have at their core (literally in their head) a cluster of three Raspberry Pi SBCs.  One of which is an R Pi CM3 mounted on a StereoPi carrier board; the other two are Raspberry Pi 4B 8 gig.  The CM3 is currently running Raspbian Buster, the two Pi 4Bs are running Raspbian OS 64 bit.  This is required for full leveraging of large model applications such as GPT-2 whose 774M and 1558M models are larger than a 32 bit OS can handle (in other words, 2GB).
+
+Review HostBlockDiagram.jpg to see the core architecture.  The three primary nodes communicate via ZMQ.
+
+VISIONACQUISITION acquires video frames from each eyeball and broadcasts them via ImageZMQ to all nodes for processing and action depending on what the hosts see.
+
+VISIONCORE handles things like face detection, recognition, and tracking, as well as object detection, recognition and tracking.
+
+LANGUAGECORE handles speech recognition (StT), speech output (TtS) using Cepstral Voices (not archived here due to file sizes - but they are much better than most anything I've found that's free.  I have licensed five voices: Allison, Belle, Callie, Dallas & David.  The licenses for Raspberry Pi users in a non-commercial/resale environment are $35.00 each and I highly recommend them.)
+
+This repository works directly with the Behavior Pad Interface (BPI) I created at https://github.com/DaveXanatos/Westworld-Style-Behavior-Pad-Interface  Note that while the interface has MANY "Westworld" hosts in it for fun... the one that works with the system here is the host called Base Host, which can be accessed by the selector in the interface's upper-right box.  The BPI edits and stores configuration values that determine the voice used by the host, and certain parameters that have an effect on how the host uses and interprets language.  It does this by writing to a file called ACTIVEHOST.txt, which is just a flat-file pipe-delimited datafile that is read and parsed by several scripts, such as SpeechCenter.py, LanguageProcessor.py and others. 
 
 Non-proprietary files here only - LanguageProcessor.py contains very sophisticated code that outperforms everything available to date, and until I determine how to protect my work on this it'll have to remain offline.  Updates as of April 2020 include leveraging GPT-2 to create even more human-esque speech :)
 
-These scripts are built on top of many dependencies and are Python 3.5 and up.  My build distro is Debian (Raspbian) Stretch (visionACQ) and Buster (visionCORE, languageCORE) (currently).  PyZMQ (ZeroMQ) is required for the scripts to send data between each other. 0MQ ROCKS!  I also employ ImageZMQ (Jeff Bass) to broadcast the eyeball video in a PUB-SUB setup so many scripts can watch and process the same video stream.  This allows a virtually unlimited number of scripts to be applied to what the robot sees, making it so that the visual capabilities of teh robot are virtually unlimited.
-
-SpeechCenter requires Cepstral Voices (licenses must e purchased) Belle, Allison, David, Dallas and a few others.  But it would work just as well with eSpeak or the T2S engine of your choice.  I chose Cepstral because the voices are the least robotic and have some character.  Belle and Dallas have southern accents!
+These scripts are built on top of many dependencies and are Python 3.7.3 and up.  
 
 Speech Recognition is built on the Python SpeechRecognition package, and you must have CMUSphinx and PocketSphinx installed, along with the Python Packages.  You also need to know how to configure audio sources in your distro.
 
