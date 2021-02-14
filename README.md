@@ -21,7 +21,7 @@ Speech Recognition is built on the Python SpeechRecognition package, and you mus
 
 LanguageProcessor is filled to the brim with dependencies including NLTK, BERT, Python RexExps, GPT-2 and a bunch of stuff I've created to both extend and fix the limitations and shortcomings of the initial packages I used.  Its performance, while still not indistinguishable from a human, is superior to anything else I've seen demonstrated anywhere on the web or tradeshows.  Watch for links to YouTube videos when I finish this part off.
 
-FaceRecognition requires OpenCV and is based on the initial work of Adrian Rosebock (https://www.pyimagesearch.com/author/adrian/).  I've modified it extensively to publish video frames and send data out about face center positioning (made available to the MotorFunctions script for eyeball and head/neck positioning, etc.) and who has been recognized, etc.
+FaceRecognition requires OpenCV and is based on the initial work of Adrian Rosebock (https://www.pyimagesearch.com/author/adrian/).  I've modified it extensively to publish video frames (thanks to Jeff Bass and ImazgZMQ for making this possible, and for Jeff's personal work with me to track down some issues and get the system performing flawlessly) and send data out about face center positioning (made available to the MotorFunctions script for eyeball and head/neck positioning, etc.) and who has been recognized, etc.
 
 MotorFunctions does just what you'd think... it basically controls banks of 16 channel I2C controlled servo controllers, with custom code for fluidic, lifelike movement.
 
