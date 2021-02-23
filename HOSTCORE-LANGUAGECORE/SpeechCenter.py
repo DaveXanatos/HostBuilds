@@ -1,46 +1,75 @@
 # python SpeechCenter.py
-# Connects to port 5555 using ZeroMQ, receives speech commands from other scripts
+# Binds to port 5555 using ZeroMQ, receives speech commands from other scripts
+# and sends jaw movement strings to MotorFunctions on 5554.
+# Revision date 2021-02-22
 
 import time
 import zmq
 import os
 import re
+import wave
+import contextlib
 
 # Open Host Behavior Matrix on Server Portal Folder:
 Host = open('/var/www/html/HostBuilds/ACTIVEHOST.txt', "r")  # On Host Processor
 HostLines = Host.readlines()
 Host.close
 
-HostIDparts = HostLines[0].split("|")  # HostLines[0] contains the base self attributes, [1] contains system parameters for OpenCV, etc., [2] - [21] contain the matrix attributes
-V = HostIDparts[5]  # Host Voice
+HostIDparts = HostLines[0].split("|")  # HostLines[0] contains the base self attributes, 
+V = HostIDparts[5]  # Host Voice in [5]; [1] = system params for OpenCV, [2] - [21] matrix attributes
 
 context = zmq.Context()
 socket = context.socket(zmq.REP)
-socket.bind("tcp://*:5555")
+socket.bind("tcp://*:5555")  #Listens for speech to output
+
+print("Connecting to Motor Control")
+jawCmd = context.socket(zmq.PUB)
+jawCmd.connect("tcp://192.168.1.210:5554") #Sends to MotorFunctions for Jaw Movement
+
+def getPlayTime():  # Checks to see if current file duration has changed
+    fname = '/tmp/speech.wav'   # and if yes, sends new duration
+    with contextlib.closing(wave.open(fname,'r')) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = round(frames / float(rate), 3)
+        speakTime = str(duration)
+        return speakTime
 
 def set_voice(V,T):
-    T = '"' + T + '"'
-    #audioFile = "/home/pi/Desktop/HOSTCORE/tmp.wav"
-    audioFile = "/tmp/speech.wav"  # /tmp if set as tmpfs, or RAMDISK to reduce SD Card write ops
-
-    #The following *was* the playback line, but after most recent update/upgrade, the
-    #-D plughw part seems to have changed.  That section used to read:  
-    #    os.system("swift -n Allison -o " + audioFile + " " +T+ " && aplay -D plughw:1,0 " + audioFile) 
+    T2 = '"' + T + '"'
+    audioFile = "/tmp/speech.wav"  # /tmp set as tmpfs, or RAMDISK to reduce SD Card write ops
 
     if V == "A":
-        os.system("swift -n Allison -o " + audioFile + " " +T+ " && aplay " + audioFile) 
-    if V == "B":
-        os.system("swift -n Belle -o " + audioFile + " " +T+ " && aplay " + audioFile) 
-    if V == "C":
-        os.system("swift -n Callie -o " + audioFile + " " +T+ " && aplay " + audioFile) 
-    if V == "D":
-        os.system("swift -n Dallas -o " + audioFile + " " +T+ " && aplay " + audioFile) 
-    if V == "V":
-        os.system("swift -n David -o " + audioFile + " " +T+ " && aplay " + audioFile) 
+        voice = "Allison"
+    elif V == "B":
+        voice = "Belle"
+    elif V == "C":
+        voice = "Callie"
+    elif V == "D":
+        voice = "Dallas"
+    elif V == "V":
+        voice = "David"
+    else:
+        voice = "Belle"
 
-pronunciationDict = {'process':'prawcess','Maeve':'Mayve','Mariposa':'May-reeposah','Lila':'Lala','Trump':'Ass hole'}
+    os.system("swift -n " + voice + " -o " + audioFile + " " +T2) # Record audio
+    tailTrim = .5                                                 # Calculate Jaw Timing
+    speakTime = eval(getPlayTime())                               # Start by getting playlength
+    speakTime = round((speakTime - tailTrim), 2)                  # Chop .5 s for trailing silence
+    wordList = T.split()
+    jawString = []
+    for index in range(len(wordList)):
+        wordLen = len(wordList[index])
+        jawString.append(wordLen)
+    jawString = str(jawString)
+    speakTime = str(speakTime)
+    jawString = speakTime + "|" + jawString  # 3.456|[4, 2, 7, 4, 2, 9, 3, 4, 3, 6] - will split on "|"
+    jawCmd.send_string(jawString)
+    os.system("aplay " + audioFile)                               # Play audio
 
-def adjustResponse(response):     # Adjusts spellings in verbal output string only to create better speech output, things like Maeve and Mariposa
+pronunciationDict = {'teh':'the','process':'prawcess','Maeve':'Mayve','Mariposa':'May-reeposah','Lila':'Lala','Trump':'Ass hole'}
+
+def adjustResponse(response):     # Adjusts spellings in output string to create better speech output.
     for key, value in pronunciationDict.items():
         if key in response or key.lower() in response:
             response = re.sub(key, value, response, flags=re.I)
@@ -52,10 +81,18 @@ set_voice(V,SpeakText) # Cepstral  Voices: A = Allison; B = Belle; C = Callie; D
 while True:
     SpeakText = socket.recv().decode('utf-8') # .decode gets rid of the b' in front of the string
     SpeakTextX = adjustResponse(SpeakText)    # Run the string through the pronunciation dictionary
-    print(SpeakTextX)
+    print("SpeakText = ",SpeakTextX)
+
     set_voice(V,SpeakTextX)
     print("Received request: %s" % SpeakTextX)
-    socket.send_string(str(SpeakTextX))        # Send data back to source for confirmation
+    socket.send_string(str(SpeakTextX))       # Send data back to source for confirmation
+
+# Combining Parameters:
+
+# This is the usual way, <prosody pitch='low'>unless you want to be a little unconventional,
+# in which case</prosody>, <emphasis level='strong'><prosody pitch='+90%'>GO</prosody> for it!</emphasis>
+# I can't emphasize enough how <emphasis level='strong'>powerful</emphasis> these new attributes can be,
+# <prosody volume='-50%'>But don't tell anybody</prosody>.
 
 # Adjusting Voice Speed
 
@@ -105,7 +142,3 @@ while True:
 # This is <emphasis level='strong'>stronger</emphasis> than the rest.
 # This is <emphasis level='moderate'>stronger</emphasis> than the rest.
 # This is <emphasis level='none'>the same as</emphasis> than the rest.
-
-# I can't emphasize enough how <emphasis level='strong'>powerful</emphasis> these new attributes can be  <prosody volume='-90%'>But don't tell anybody</prosody>.
-
-
