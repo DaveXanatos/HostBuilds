@@ -1,5 +1,5 @@
 # USAGE python /home/pi/Desktop/HOSTCORE/MotorFunctions-Visual.py
-# Revision date 2021-01-06
+# Revision date 2021-02-22
 
 # import the necessary packages
 from __future__ import division
@@ -11,6 +11,8 @@ import threading
 from threading import Thread
 from collections import deque
 import zmq
+import wave
+import contextlib
 
 gainH = 0.80  # Tune to eliminate oscillations
 gainV = 0.80
@@ -20,7 +22,7 @@ SSRH = 3.15 #ScreenServoRatioH
 SSRV = 3.15 #ScreenServoRatioV
 
 facePos_q = deque(maxlen=3)
-reactQ = deque(maxlen=1)
+jawC_q = deque(maxlen=1)
 
 context = zmq.Context()
 
@@ -31,9 +33,9 @@ socketM = context.socket(zmq.SUB)  # Listens for commands to move eyes (FR, nois
 socketM.connect("tcp://192.168.1.202:5558") # FR on visionCORE is 202:5558; on visionACQ it is 210:5558
 socketM.setsockopt_string(zmq.SUBSCRIBE, "")
 
-eyeReactions = context.socket(zmq.SUB)  # Listens for commands to move eyes (FR, noise, etc)
-eyeReactions.connect("tcp://192.168.1.201:5554") # eyeFlinch.py on LanguageCORE
-eyeReactions.setsockopt_string(zmq.SUBSCRIBE, "")
+jawCmd = context.socket(zmq.SUB)  # Listens for commands to move jaw (sync to SpeechCenter.py)
+jawCmd.bind("tcp://192.168.1.210:5554") # Listens to SpeechCenter.py on LanguageCORE
+jawCmd.setsockopt_string(zmq.SUBSCRIBE, "")
 
 def set_voice(msg):                # Talking to the SpeechCenter
     socket.send_string(msg)
@@ -124,8 +126,8 @@ pwm2.set_pwm_freq(60)
 
 SpeakText = "Motor Functions are Acquiring."
 print(SpeakText)
-socket.send_string(SpeakText)
-message = socket.recv()
+#socket.send_string(SpeakText)
+#message = socket.recv()
 
 def sendSpeech(t,d):
     time.sleep(d)
@@ -139,8 +141,8 @@ def clamp(n, minn, maxn):
 def doRandom(vlc, vrc, hlc, hrc):
     vOffset = randrange(60)-30
     hOffset = randrange(60)-30
-    stepTime = (randrange(2500)/1000)+.1
-    print("Random: ",vOffset,hOffset,stepTime)
+    stepTime = round(((randrange(2500)/1000)+.1), 3)
+    #print("Random: ",vOffset,hOffset,stepTime)
     doEyeMove(vOffset, hOffset, stepTime, vlc, vrc, hlc, hrc)
 
 # Eyes: (All Centered):
@@ -240,7 +242,9 @@ def doEyeMove(vOffset, hOffset, stepTime, rvlc, rvrc, rhlc, rhrc):   # clamp(n, 
     return vlp, vrp, hlp, hrp
 
 def doJaw(jawSeq):
+    init = 0
     for item in jawSeq:
+        startDelay = 0  #(len(jawSeq)*.01)+.5
         pct = item[0]
         jdelay = item[1]
         pct = pct/100
@@ -248,6 +252,9 @@ def doJaw(jawSeq):
         jawRangeR = servoJR_max - servoJR_min
         openJL = int(servoJL_min + (jawRangeL * pct))
         openJR = int(servoJR_min + (jawRangeR * pct))
+        if init == 0:
+            time.sleep(startDelay)
+            init = 1
         pwm.set_pwm(JL, 0, openJL) # Jaw Open percentage specified
         pwm.set_pwm(JR, 0, openJR) # Jaw Open percentage specified
         time.sleep(jdelay)
@@ -384,30 +391,21 @@ doK(.2)
 
 doCenter(.1)
 
-
 #Shake Head Yes with Jaw Movement for "Yes"
 SpeakText = "Yes"
 thread = Thread(target = sendSpeech, args = (SpeakText,.01))
 thread.start()
-time.sleep(1)
-jawSeq = [(55,.6),(65,.4),(40,.4)]
-thread = Thread(target = doJaw, args = (jawSeq,))
-thread.start()
 doYes(4,30,.002)
 
-time.sleep(.5)
+time.sleep(1.5)
 
 #Shake Head No with Jaw Movement for "No"
 SpeakText = "No"
 thread = Thread(target = sendSpeech, args = (SpeakText,.01))
 thread.start()
-time.sleep(1)
-jawSeq = [(45,.5),(30,.4)]
-thread = Thread(target = doJaw, args = (jawSeq,))
-thread.start()
 doNo(3,20,0)    # qty = num cycles; rng = how wide % of rotRng; spd = delay in secs between steps
 
-time.sleep(.5)
+time.sleep(1.5)
 
 #Look Lower Right, Jaw Movement for "Motor Function Self Test Complete."
 thread = Thread(target = doHeadK, args = (45,.001,.005,1.25))
@@ -416,11 +414,6 @@ thread.start()
 SpeakText = "Host Startup Sequence Complete"
 thread = Thread(target = sendSpeech, args = (SpeakText,.01))
 thread.start()
-#time.sleep(1) # This delay line causes doHeadK to jerk badly.  Added a 0,4 to jawSeq to add delay for jaw start...
-
-jawSeq = [(0,1),(25,.3),(10,.1),(60,.2),(80,.2),(50,.25),(70,.5),(40,.3),(50,.25),(60,.1),(50,.1),(80,.1),(45,.1),(22,.35)]
-thread = Thread(target = doJaw, args = (jawSeq,))
-thread.start()
 
 lidSeq = [(50,.2),(75,.5),(10,.1),(50,1),(120,.5),(100,1)]
 thread = Thread(target = doLids, args = (lidSeq,))
@@ -428,35 +421,38 @@ thread.start()
 
 moveHead(rotc,ltec,rtec,.1)  # LEV: 490 <-----440----->390 (rng 100)   REV: 300 <-----350----->400 (rng 100)   MaxDOWN<-----CTR----->MaxUP
 
-#SpeakText = "Motor Function Self Test Complete."
-#socket.send_string(SpeakText)
-#message = socket.recv()
-
 def watchCmd():
     while 1 == 1:
-        message = socketM.recv() # Watches on :5558
+        message = socketM.recv() # Watches on :5558 - Eyeball Movement Commands from FaceRecognition.py
         extMoveCmd = message.decode('utf-8')
         facePos_q.append(extMoveCmd)
-        #print("Q Len: ", len(facePos_q),extMoveCmd)
 
 thread = Thread(target = watchCmd) # Puts watchCmd() in BG thread where it just watches & waits
 thread.start()
 
-def checkReact():
+def checkJaw():
     while True:
-        react = eyeReactions.recv() # Watches on :5554
-        reactCmd = react.decode('utf-8')
-        reactQ.append(reactCmd)
-        print("Q Len: ", len(reactQ),reactCmd)
+        jawString = jawCmd.recv() # Watches on :5554 - Jaw String - Duration, Words qty & letters length
+        jawMove = jawString.decode('utf-8')
+        jawC_q.append(jawMove)
 
-thread = Thread(target = checkReact) # Puts checkReact() in BG thread where it just watches & waits
+thread = Thread(target = checkJaw) # Puts checkJaw() in BG thread where it just watches & waits
+thread.start()
+
+def randBlink():
+    lidSeq = [(100,.2),(30,.35),(100,.1)]
+    randTime = round((randrange(22)+7), 3)
+    doLids(lidSeq)
+    time.sleep(randTime)
+    randBlink()
+
+thread = Thread(target = randBlink)
 thread.start()
 
 noFace = 0
 
 while True:
     message = "-"
-    reactTo = ""
 
     try:
         message = facePos_q.popleft()
@@ -482,16 +478,29 @@ while True:
             doRandom(vlc, vrc, hlc, hrc)
 
     try:
-        reactTo = reactQ.popleft()
-        if reactTo == "blink":
-            print("blink")
-            #doBlink(1,1)
-            lidSeq = [(100,.1),(0,.1),(100,.1)]
-            thread = Thread(target = doLids, args = (lidSeq,))
-            thread.start()
-        reactQ.clear()
-    except:
+        jawString = jawC_q.popleft() # jawString example: 3.465|[4, 2, 7, 4, 2, 9, 3, 4, 3]
+        jawC_q.clear()
+        jawString = jawString.split("|")
+        duration = eval(jawString[0])
+        jawString = eval(jawString[1])
+        jawOpenPct = 20
+        wordTime = round(duration/len(jawString), 3)
+        letterDelay = .01 # Hardcoding may be replaced by durational attempts
+        wordSpace = .05 # Hardcoding may be replaced by durational attempts
+        jawSeq = []
+        for item in range(len(jawString)):
+            jawString[item] = int(jawString[item])
+            #jawDelay = round((jawString[item]*letterDelay)+wordSpace, 2)
+            jawDelay = round(wordTime,2)
+            jawString[item] = min((jawString[item]*jawOpenPct), 80)
+            jawSeq.append(list([jawString[item],jawDelay]))
+        jawSeq = [(x, y) for x, y in jawSeq] # jawSeq = %open,delay =  [(0,1),(25,.3),(10,.1)]
+
+        thread = Thread(target = doJaw, args = (jawSeq,))
+        thread.start()
+
+    except:  #except Exception as e:
+        #print(e)
         pass
 
 exit()
-
