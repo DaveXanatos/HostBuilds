@@ -1,7 +1,6 @@
 # python SpeechCenter.py
 # Binds to port 5555 using ZeroMQ, receives speech commands from other scripts
 # and sends jaw movement strings to MotorFunctions on 5554.
-# Revision date 2021-02-22
 
 import time
 import zmq
@@ -35,7 +34,7 @@ def getPlayTime():  # Checks to see if current file duration has changed
         speakTime = str(duration)
         return speakTime
 
-def set_voice(V,T):
+def set_voice(V,T,H):
     T2 = '"' + T + '"'
     audioFile = "/tmp/speech.wav"  # /tmp set as tmpfs, or RAMDISK to reduce SD Card write ops
 
@@ -55,7 +54,7 @@ def set_voice(V,T):
     os.system("swift -n " + voice + " -o " + audioFile + " " +T2) # Record audio
     tailTrim = .5                                                 # Calculate Jaw Timing
     speakTime = eval(getPlayTime())                               # Start by getting playlength
-    speakTime = round((speakTime - tailTrim), 2)                  # Chop .5 s for trailing silence
+    speakTime = round((speakTime - tailTrim), 2)                             # Chop .5 s for trailing silence
     wordList = T.split()
     jawString = []
     for index in range(len(wordList)):
@@ -63,11 +62,13 @@ def set_voice(V,T):
         jawString.append(wordLen)
     jawString = str(jawString)
     speakTime = str(speakTime)
-    jawString = speakTime + "|" + jawString  # 3.456|[4, 2, 7, 4, 2, 9, 3, 4, 3, 6] - will split on "|"
+    jawString = speakTime + "|" + jawString + "|" + H  # 3.456|[4, 2, 7, 4, 2, 9, 3, 4, 3, 6]|('yes', 3, 'no', 8) - will split on "|"
     jawCmd.send_string(jawString)
+    os.system("pacmd suspend-source 1 1")  #Mutes Mic
     os.system("aplay " + audioFile)                               # Play audio
+    os.system("pacmd suspend-source 1 0")  #Unmutes Mic
 
-pronunciationDict = {'teh':'the','process':'prawcess','Maeve':'Mayve','Mariposa':'May-reeposah','Lila':'Lala','Trump':'Ass hole'}
+pronunciationDict = {'teh':'the','shine':'zhine','shiney':'zhiney','shining':'zhining','process':'prawcess','Maeve':'Mayve','Mariposa':'May-reeposah','Lila':'Lala','Trump':'Ass hole'}
 
 def adjustResponse(response):     # Adjusts spellings in output string to create better speech output.
     for key, value in pronunciationDict.items():
@@ -75,19 +76,33 @@ def adjustResponse(response):     # Adjusts spellings in output string to create
             response = re.sub(key, value, response, flags=re.I)
     return response
 
+def extractCommands(stwc): # Extracts & sends {movement commands} embedded in SpeakText With Commands
+    commands = re.findall(r'\{.*?\}', stwc)
+    for i in range(len(commands)):
+        commands[i] = re.sub(r'\W+', '', str(commands[i]))
+    cmdPos = [i+1 for i,w in enumerate(stwc.split()) if "{" in w]
+    headString = sum(zip(commands, cmdPos), ())
+    print(headString) # Ex. ('yes', 3, 'no', 8) (Dev Only)
+    text = re.sub(r'\{[^}]*\}\s', '', stwc)
+    return text, headString
+
 SpeakText="Speech center connected and online."
-set_voice(V,SpeakText) # Cepstral  Voices: A = Allison; B = Belle; C = Callie; D = Dallas; V = David;
+set_voice(V,SpeakText,"()") # Cepstral  Voices: A = Allison; B = Belle; C = Callie; D = Dallas; V = David;
 
 while True:
     SpeakText = socket.recv().decode('utf-8') # .decode gets rid of the b' in front of the string
+    SpeakText, headString = extractCommands(SpeakText)
     SpeakTextX = adjustResponse(SpeakText)    # Run the string through the pronunciation dictionary
-    print("SpeakText = ",SpeakTextX)
-
-    set_voice(V,SpeakTextX)
-    print("Received request: %s" % SpeakTextX)
-    socket.send_string(str(SpeakTextX))       # Send data back to source for confirmation
+    print("SpeakText = ",SpeakTextX) # Dev Only
+    if headString == "":
+        headString = "()"
+    set_voice(V,SpeakTextX,str(headString))
+    print("Received request: %s" % SpeakTextX) # Dev Only
+    socket.send_string(str(SpeakTextX))        # Send data back to source for confirmation
 
 # Combining Parameters:
+
+# NOTE:  Using {} curly braces around words seems to add an emphasis.  Try others.
 
 # This is the usual way, <prosody pitch='low'>unless you want to be a little unconventional,
 # in which case</prosody>, <emphasis level='strong'><prosody pitch='+90%'>GO</prosody> for it!</emphasis>
@@ -107,7 +122,7 @@ while True:
 # I am now <prosody rate='-0.3'>speaking 30% more slowly.</prosody>
 # I am now <prosody rate='+0.3'>speaking 30% faster.</prosody>
 
-# Adjusting Voice Pitch 
+# Adjusting Voice Pitch
 
 # <prosody pitch='x-low'>This is half-pitch</prosody>
 # <prosody pitch='low'>This is 3/4 pitch.</prosody>
