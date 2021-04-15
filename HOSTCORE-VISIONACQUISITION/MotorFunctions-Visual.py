@@ -1,5 +1,7 @@
 # USAGE python /home/pi/Desktop/HOSTCORE/MotorFunctions-Visual.py
-# Revision date 2021-02-22
+# Revision date 2021-04-14
+# Includes head movements embedded in SpeechCenter.py messaging ( using {} ) on port 5554
+# Eye Movements from Face Recognition are received on port 5558
 
 # import the necessary packages
 from __future__ import division
@@ -47,17 +49,24 @@ vlc = 316  # Experimentally Determined Left Vertical Center Value (Lower = Highe
 vrc = 302  # Experimentally Determined Right Vertical Center Value (Lower = Lower) was 312
 
 rhlc = hlc # Running values for servo centers (these change with every
-rhrc = hrc # face detection center point data
+rhrc = hrc # face detection center point data)
 rvlc = vlc
 rvrc = vrc
 
 rotc = 450 # Neck Rotation Center (init 470, lower = lefter)
-ltec = 440 # Neck Left Elevator Center?
-rtec = 350 # Neck Right Elevator Center?
+rotMaxR = 650 # Full Right (+200, actual)
+rotMaxL = 270 # Full Left (-180, actual)
+rotRng = rotMaxR - rotMaxL  # 380
 
-rotMaxR = 650 # Full Right
-rotMaxL = 270 # Full Left
-rotRng = rotMaxR - rotMaxL
+ltec = 440 # Neck Left Elevator Center?
+levMax = 490 # Dev Numbers only + 50 from c
+levMin = 390 # Dev Numbers only - 50 from c
+levRng = levMax - levMin
+
+rtec = 350 # Neck Right Elevator Center?
+revMax = 400 # Dev Numbers only + 50 from c
+revMin = 300 # Dev Numbers only - 50 from c
+revRng = revMax - revMin
 
 # Set vars for servos
 # Eyes on pwm:
@@ -268,69 +277,83 @@ def doJaw(jawSeq):
 # ltec   390 <-------440------->530   +x = downer
 # rtec   390 <-------350------->200   -x = downer
 
-def moveHead(rot,lel,rel,delay):
+def headServos(rot,lel,rel):
     pwm2.set_pwm(ROT, 0, rot) # Rot'n: 270 = Max Left, 650 = Max Right, 470 Center
-    pwm2.set_pwm(REV, 0, rel) # R Elev: 390 = Max Up, 200 = Max  Down, 295 Center
     pwm2.set_pwm(LEV, 0, lel) # L Elev: 390 = Max Up, 530 = Max  Down, 460 Center
-    time.sleep(delay)
-
-def doHeadK(rng,spdIn,spdOut,holdTime):
-    moveHead(rotc,ltec,rtec,.12)
-    #Look K:
-    pwm.set_pwm(LUD, 0, servoLV_max)     # L U/D Sync'd   320 Higher = down
-    pwm.set_pwm(RUD, 0, servoRV_min)     # R U/D Sync'd   320 Lower = down
-    pwm.set_pwm(LLR, 0, servoLH_min)
-    pwm.set_pwm(RLR, 0, servoRH_min)
-    time.sleep(.1)
-    #Head Follows     Center all is  moveHead(ROT: 450, LEV: 440, REV: 350, DELAY: 1) ROT:LOW L, HIGH R;  LEV: Lower = upper; REV: Higher = upper
-    for x in range(rng):
-        rotx = rotc + (x*2)
-        levx = ltec + x
-        revx = rtec - x
-        moveHead(rotx,levx,revx,spdIn)
-    time.sleep(holdTime)
-    #Eyes back to center:
-    pwm.set_pwm(LUD, 0, vlc)     # L U/D Sync'd   320 Higher = down
-    pwm.set_pwm(RUD, 0, vrc)     # R U/D Sync'd   320 Lower = down
-    pwm.set_pwm(LLR, 0, hlc)     # L L/R Sync'd   270 Higher = lefter
-    pwm.set_pwm(RLR, 0, hrc)     # R L/R Sync'd   380 Higher = lefter
-    time.sleep(.2)
-    #Head Follows:
-    for x in range(rng,0,-1):
-        rotx = rotc + (x*2)
-        levx = ltec + x
-        revx = rtec - x
-        moveHead(rotx,levx,revx,spdOut)
-    moveHead(rotc,ltec,rtec,.12) #Just in case
-    time.sleep(.1)
+    pwm2.set_pwm(REV, 0, rel) # R Elev: 390 = Max Up, 200 = Max  Down, 295 Center
 
 #        LEFT                 RIGHT
 # rotc   270 <-------450------->650   +x = righter
 
-def doNo(qty,rng,spd):  # qty = num cycles; rng = how wide % of rotRng; spd = delay in secs between steps
-    moveHead(rotc,ltec,rtec,spd)
-    doWide = int((rotRng * (rng/100))/4)  # /4 to speed movement up
-    for x in range(qty):
-        for y in range(doWide):
-            moveHead(rotc+(y*2),ltec,rtec,spd)  # y*2 to speed up stepping
-        for y in range(doWide,0-doWide,-1):
-            moveHead(rotc+(y*2),ltec,rtec,spd)
-        for y in range(0-doWide,0,1):
-            moveHead(rotc+(y*2),ltec,rtec,spd)
-    moveHead(rotc,ltec,rtec,spd) #Just in case
+def moveHead(rotNow,levNow,revNow,rotp,levp,revp,spd,hTime,mult):  # CurrROT, CurrLEV, CurrREV, ROT%, LEV%, REV%, speed, hold time
 
-def doYes(qty,rng,spd):  # qty = num cycles; rng = how wide % of rotRng; spd = delay in secs between steps
-    moveHead(rotc,ltec,rtec,.1)  # LEV: 490 <-----440----->390 (rng 100)   REV: 300 <-----350----->400 (rng 100)   MaxDOWN<-----CTR----->MaxUP
-    for x in range(qty):
-        for y in range(rng):
-            goDNL = ltec + y
-            goDNR = rtec - y
-            moveHead(rotc,goDNL,goDNR,spd)
-        for y in range(rng,0,-1):
-            goUPL = ltec + y
-            goUPR = rtec - y
-            moveHead(rotc,goUPL,goUPR,spd)
-    moveHead(rotc,ltec,rtec,.1) #Just in case
+    rotMove = int((rotRng/2)*(rotp/100)) # Move distance from center
+    rotPos = rotMove + rotc # Position to move to (half the range, times %age, + center) = final position
+    rotNew = rotNow - rotPos # Distance of move from current position
+    rotDir = 1
+    if rotNew < 0:
+        rotDir = -1
+
+    levMove = int((levRng/2)*(levp/100)) # Move distance from center
+    levPos = levMove + ltec # Position to move to (half the range, times %age, + center) = final position
+    levNew = levNow - levPos # Distance of move from current position
+    levDir = 1
+    if levNew < 0:
+        levDir = -1
+
+    revMove = int((revRng/2)*(revp/100)) # Move distance from center
+    revPos = revMove + rtec # Position to move to (half the range, times %age, + center) = final position
+    revNew =  revNow - revPos # Distance of move from current position
+    revDir = 1
+    if revNew < 0:
+        revDir = -1
+
+    countRange = (max(abs(rotNew),abs(levNew),abs(revNew)))
+
+    for x in range(0,countRange,mult): # Count from current (last) position to new position
+        if rotDir == 1:
+            if rotNow > rotPos:
+                rotNow = rotNow - (rotDir * mult)     # Moving head right
+                if rotNow <= rotPos:
+                    rotNow = rotPos
+        else:
+            if rotNow < rotPos:
+                rotNow = rotNow - (rotDir * mult)      # Moving head right
+                if rotNow >= rotPos:
+                    rotNow = rotPos
+
+        if levDir == 1:
+            if levNow > levPos:
+                levNow = levNow - (levDir * mult)      # Head down = lev +
+                if levNow <= levPos:
+                    levNow = levPos
+        else:
+            if levNow < levPos:
+                levNow = levNow - (levDir * mult)
+                if levNow >= levPos:
+                    levNow = levPos
+
+        if revDir == 1:
+            if revNow > revPos:
+                revNow = revNow - (revDir * mult)      # Head down = lev +
+                if revNow <= revPos:
+                    revNow = revPos
+        else:
+            if revNow < revPos:
+                revNow = revNow - (revDir * mult)
+                if revNow >= revPos:
+                    revNow = revPos
+
+        rotNow = clamp(rotNow,rotMaxL,rotMaxR) # n, minn, maxn - make sure numbers don't go out of bounds
+        levNow = clamp(levNow,levMin,levMax) # n, minn, maxn
+        revNow = clamp(revNow,revMin,revMax) # n, minn, maxn
+
+        headServos(rotNow,levNow,revNow)
+
+    return rotPos, levPos, revPos  # Returns head final position setting for servos - so range knows where to start from next time
+
+newHeadRO, newHeadLE, newHeadRE = moveHead(rotc,ltec,rtec,0,0,0,.01,.1,1)
+time.sleep(.2)
 
 def doLids(lidSeq):
     for item in lidSeq:
@@ -356,6 +379,33 @@ def doLids(lidSeq):
     pwm.set_pwm(LRT, 0, 360)     # Lid Right Top    Higher = more open.  360 is OPEN, 300 is closed
     pwm.set_pwm(LRB, 0, 345)     # Lid Right Bottom Higher = more open.  345 is OPEN, 400 is closed
     time.sleep(.1)
+
+def doNo(newHeadRO, newHeadLE, newHeadRE):
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,30,0,0,0,.001,2) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,-30,0,0,0,.001,3)
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,30,0,0,0,.001,3) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,-30,0,0,0,.001,3)
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,20,0,0,0,.001,3) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,-10,0,0,0,.001,2)
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,0,0,.01,.1,2) # Hardcode to center
+
+def doYes(newHeadRO, newHeadLE, newHeadRE):
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,30,-30,.01,.1,1) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,-30,30,.01,.1,1) # -, +- = up
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,30,-30,.01,.1,1) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,-30,30,.01,.1,1) # -, +- = up
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,30,-30,.01,.1,1) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,-30,30,.01,.1,1) # -, +- = up
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,20,-20,.01,.1,1) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,-10,10,.01,.1,1) # -, +- = up
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,5,-5,.01,.1,1) # +, - = down
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,0,0,0,.01,.1,1) # -, +- = up
+
+def doRandomHead():
+    elevOffset = randrange(60)-30
+    rotOffset = randrange(60)-30
+    randTime = round((randrange(4)+1), 1)
+    return rotOffset, elevOffset, randTime
 
 doCenter(.5)
 
@@ -395,38 +445,32 @@ doCenter(.1)
 SpeakText = "Yes"
 thread = Thread(target = sendSpeech, args = (SpeakText,.01))
 thread.start()
-doYes(4,30,.002)
-
-time.sleep(1.5)
+doYes(newHeadRO, newHeadLE, newHeadRE)
+thread.join()
+time.sleep(1)
 
 #Shake Head No with Jaw Movement for "No"
 SpeakText = "No"
 thread = Thread(target = sendSpeech, args = (SpeakText,.01))
 thread.start()
-doNo(3,20,0)    # qty = num cycles; rng = how wide % of rotRng; spd = delay in secs between steps
-
-time.sleep(1.5)
-
-#Look Lower Right, Jaw Movement for "Motor Function Self Test Complete."
-thread = Thread(target = doHeadK, args = (45,.001,.005,1.25))
-thread.start()
+doNo(newHeadRO, newHeadLE, newHeadRE)    # qty = num cycles; rng = how wide % of rotRng; spd = delay in secs between steps
+thread.join()
+time.sleep(1)
 
 SpeakText = "Host Startup Sequence Complete"
 thread = Thread(target = sendSpeech, args = (SpeakText,.01))
 thread.start()
+thread.join()
 
 lidSeq = [(50,.2),(75,.5),(10,.1),(50,1),(120,.5),(100,1)]
 thread = Thread(target = doLids, args = (lidSeq,))
 thread.start()
-
-moveHead(rotc,ltec,rtec,.1)  # LEV: 490 <-----440----->390 (rng 100)   REV: 300 <-----350----->400 (rng 100)   MaxDOWN<-----CTR----->MaxUP
 
 def watchCmd():
     while 1 == 1:
         message = socketM.recv() # Watches on :5558 - Eyeball Movement Commands from FaceRecognition.py
         extMoveCmd = message.decode('utf-8')
         facePos_q.append(extMoveCmd)
-
 thread = Thread(target = watchCmd) # Puts watchCmd() in BG thread where it just watches & waits
 thread.start()
 
@@ -435,7 +479,6 @@ def checkJaw():
         jawString = jawCmd.recv() # Watches on :5554 - Jaw String - Duration, Words qty & letters length
         jawMove = jawString.decode('utf-8')
         jawC_q.append(jawMove)
-
 thread = Thread(target = checkJaw) # Puts checkJaw() in BG thread where it just watches & waits
 thread.start()
 
@@ -445,8 +488,24 @@ def randBlink():
     doLids(lidSeq)
     time.sleep(randTime)
     randBlink()
-
 thread = Thread(target = randBlink)
+thread.start()
+
+def doRead(newHeadRO, newHeadLE, newHeadRE):
+    doID(.2)
+    newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,-100,160,-160,.01,.1,1) # +x = righter, +, - = down, spd, hldtimt, mult
+    return newHeadRO, newHeadLE, newHeadRE
+
+#Testing Only: 10 seconds in teh doRead() position
+newHeadRO, newHeadLE, newHeadRE = doRead(newHeadRO, newHeadLE, newHeadRE)
+time.sleep(10)
+
+def randHead(newHeadRO, newHeadLE, newHeadRE):
+    while True:
+        rotOffset, elevOffset, randTime = doRandomHead()
+        newHeadRO, newHeadLE, newHeadRE = moveHead(newHeadRO,newHeadLE,newHeadRE,rotOffset,elevOffset,elevOffset*-1,.01,.1,1) # +, - = down
+        time.sleep(randTime) # Doing nothing
+thread = Thread(target = randHead, args=(newHeadRO,newHeadLE,newHeadRE))
 thread.start()
 
 noFace = 0
@@ -478,11 +537,13 @@ while True:
             doRandom(vlc, vrc, hlc, hrc)
 
     try:
-        jawString = jawC_q.popleft() # jawString example: 3.465|[4, 2, 7, 4, 2, 9, 3, 4, 3]
+        jawString = jawC_q.popleft() # jawString example: 3.465|[4, 2, 7, 4, 2, 9, 3, 4, 3]|('yes', 3, 'no', 8)
         jawC_q.clear()
-        jawString = jawString.split("|")
-        duration = eval(jawString[0])
-        jawString = eval(jawString[1])
+        print(jawString)
+        jawStringRaw = jawString.split("|")
+        duration = eval(jawStringRaw[0]) # Ex. 3.465
+        jawString = eval(jawStringRaw[1]) # Ex. [4, 2, 7, 4, 2, 9, 3, 4, 3]
+        headString = eval(jawStringRaw[2]) # Ex. ('yes', 3, 'no', 8)
         jawOpenPct = 20
         wordTime = round(duration/len(jawString), 3)
         letterDelay = .01 # Hardcoding may be replaced by durational attempts
@@ -490,12 +551,11 @@ while True:
         jawSeq = []
         for item in range(len(jawString)):
             jawString[item] = int(jawString[item])
-            #jawDelay = round((jawString[item]*letterDelay)+wordSpace, 2)
             jawDelay = round(wordTime,2)
             jawString[item] = min((jawString[item]*jawOpenPct), 80)
             jawSeq.append(list([jawString[item],jawDelay]))
         jawSeq = [(x, y) for x, y in jawSeq] # jawSeq = %open,delay =  [(0,1),(25,.3),(10,.1)]
-
+        print(headString) # Development only.  headString will a) turn off random head movements b) reference incoming string and c) act on it
         thread = Thread(target = doJaw, args = (jawSeq,))
         thread.start()
 
